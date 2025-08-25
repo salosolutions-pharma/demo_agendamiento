@@ -8,7 +8,7 @@ from fastapi import FastAPI, HTTPException, Request, Header, Query
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
-# --- Proveedores y capas (ajusta rutas de import según tu estructura)
+# --- Proveedores y capas (ajusta rutas de import segÃºn tu estructura)
 from call.twilio import TwilioCallProvider                      # <-- Carrier Twilio
 from call.base import BaseCallProvider, CallEvent, EventType     # <-- Tipos del carrier
 from voice.azure import AzureVoiceProvider                       # <-- TTS Azure
@@ -26,9 +26,9 @@ app = FastAPI(title="Voice API - Twilio + Azure TTS", version="5.0.0")
 # =========================
 BASE_URL = os.getenv("BASE_URL", "").rstrip("/")
 if not BASE_URL:
-    logger.warning("⚠️ BASE_URL no configurada. Debe ser accesible por Twilio (https).")
+    logger.warning("âš ï¸ BASE_URL no configurada. Debe ser accesible por Twilio (https).")
 
-# Cache efímera de audio (clave: (call_id, seq) -> bytes)
+# Cache efÃ­mera de audio (clave: (call_id, seq) -> bytes)
 audio_cache: Dict[tuple, bytes] = {}
 
 # Estado de llamada
@@ -45,11 +45,11 @@ calendar = GoogleCalendarScheduler()
 bq: Optional[BigQueryStorage] = None
 try:
     bq = BigQueryStorage()
-    logger.info("✅ BigQuery listo")
+    logger.info("âœ… BigQuery listo")
 except Exception as e:
     logger.warning(f"BigQuery no disponible: {e}")
 
-# Único carrier por ahora (Twilio). Luego puedes agregar Telnyx
+# Ãšnico carrier por ahora (Twilio). Luego puedes agregar Telnyx
 def get_call_provider() -> BaseCallProvider:
     return TwilioCallProvider()
 
@@ -101,7 +101,7 @@ def build_play_twiml(play_url: str, gather_after: bool = False, say_if_no_input:
             method="POST",
             speech_timeout="auto",
             language="es-MX",
-            timeout=10,  # algo más generoso para telefonía
+            timeout=10,  # algo mÃ¡s generoso para telefonÃ­a
             partial_result_callback=f"{BASE_URL}/twilio/partial-result",  # Opcional
         )
         
@@ -109,8 +109,8 @@ def build_play_twiml(play_url: str, gather_after: bool = False, say_if_no_input:
         if say_if_no_input:
             gather.say(say_if_no_input, voice="Polly.Conchita")
 
-        # Fallback si no habla después del timeout
-        resp.say("No te escuché bien. ¿Podrías repetir?", voice="Polly.Conchita")
+        # Fallback si no habla despuÃ©s del timeout
+        resp.say("No te escuchÃ© bien. Â¿PodrÃ­as repetir?", voice="Polly.Conchita")
         # Reintentar gather
         resp.redirect(f"{BASE_URL}/twilio/twiml")
 
@@ -119,8 +119,8 @@ def build_play_twiml(play_url: str, gather_after: bool = False, say_if_no_input:
 
 def speak_with_azure_and_build_twiml(call_id: str, text: str, gather_after: bool = True) -> Optional[str]:
     """
-    1) Síntesis Azure (WAV μ-law 8kHz) en memoria
-    2) Guardar en cache efímera (call_id, seq)
+    1) SÃ­ntesis Azure (WAV Î¼-law 8kHz) en memoria
+    2) Guardar en cache efÃ­mera (call_id, seq)
     3) Generar URL firmada /audio/{call_id}/{seq}?token=...
     4) Construir TwiML con <Play> y (opcional) <Gather> para siguiente turno
     """
@@ -129,7 +129,7 @@ def speak_with_azure_and_build_twiml(call_id: str, text: str, gather_after: bool
 
     audio = voice.generate_audio(text)
     if not audio:
-        logger.error("Azure TTS devolvió audio vacío")
+        logger.error("Azure TTS devolviÃ³ audio vacÃ­o")
         return None
 
     seq = next_seq(call_id)
@@ -138,6 +138,16 @@ def speak_with_azure_and_build_twiml(call_id: str, text: str, gather_after: bool
     play_url = f"{BASE_URL}/audio/{call_id}/{seq}?token={token}"
 
     return build_play_twiml(play_url, gather_after=gather_after)
+
+
+def find_slot_by_datetime(slots: List[Dict], iso_inicio: str) -> Optional[Dict]:
+    """
+    âœ… NUEVA FUNCIÓN: Encuentra el slot que coincide con la fecha/hora solicitada
+    """
+    for slot in slots:
+        if slot.get("iso_inicio") == iso_inicio:
+            return slot
+    return None
 
 
 def save_appointment_to_services(call_id: str, slot: Dict[str, Any]) -> bool:
@@ -158,7 +168,7 @@ def save_appointment_to_services(call_id: str, slot: Dict[str, Any]) -> bool:
         doctor = slot.get("doctor", "Doctor")
         
         if not fecha_inicio or not fecha_fin:
-            logger.error(f"[{call_id}] Slot inválido: faltan fechas {slot}")
+            logger.error(f"[{call_id}] Slot invÃ¡lido: faltan fechas {slot}")
             return False
         
         logger.info(f"[{call_id}] Creando cita: {nombre_paciente} con {doctor} el {fecha_inicio}")
@@ -184,16 +194,16 @@ def save_appointment_to_services(call_id: str, slot: Dict[str, Any]) -> bool:
                     duracion_minutos=30,
                     call_id=call_id,
                     calendar_event_id=event_id,
-                    notas=f"Cita agendada automáticamente via llamada. Slot: {slot.get('texto', '')}"
+                    notas=f"Cita agendada automÃ¡ticamente via llamada. Slot: {slot.get('texto', '')}"
                 )
                 logger.info(f"[{call_id}] Guardado en BigQuery con ID: {bq_id}")
             except Exception as e:
                 logger.warning(f"[{call_id}] BigQuery save_appointment warning: {e}")
         
         if ok:
-            logger.info(f"[{call_id}] ✅ Cita creada exitosamente - Calendar ID: {event_id}")
+            logger.info(f"[{call_id}] âœ… Cita creada exitosamente - Calendar ID: {event_id}")
         else:
-            logger.error(f"[{call_id}] ❌ Error creando cita en calendar")
+            logger.error(f"[{call_id}] âŒ Error creando cita en calendar")
         
         return ok
         
@@ -289,7 +299,7 @@ async def twilio_twiml_handler(request: Request):
     
     logger.info(f"[{call_sid}] Iniciando TwiML handler")
 
-    greeting = "Hola, te habla Salomé de No Me Entregaron. ¿Quieres agendar una cita médica?"
+    greeting = "Hola, te habla SalomÃ© de No Me Entregaron. Â¿Quieres agendar una cita mÃ©dica?"
     twiml = speak_with_azure_and_build_twiml(call_sid, greeting, gather_after=True)
 
     # (Opcional) registra el saludo en el historial para contexto del LLM
@@ -300,7 +310,7 @@ async def twilio_twiml_handler(request: Request):
     except Exception:
         pass
 
-    # Si algo falla, devolvemos una pausa mínima para que la llamada no se caiga
+    # Si algo falla, devolvemos una pausa mÃ­nima para que la llamada no se caiga
     if not twiml:
         from twilio.twiml.voice_response import VoiceResponse
         resp = VoiceResponse()
@@ -314,7 +324,7 @@ async def twilio_twiml_handler(request: Request):
             language="es-MX",
             timeout=10,
         )
-        gather.say("¿Quieres agendar una cita médica?", voice="Polly.Conchita")
+        gather.say("Â¿Quieres agendar una cita mÃ©dica?", voice="Polly.Conchita")
         return Response(content=str(resp), media_type="application/xml")
 
     logger.info(f"[{call_sid}] TwiML generado correctamente")
@@ -340,7 +350,7 @@ async def twilio_partial_result(request: Request):
 async def twilio_speech_result(request: Request):
     """
     Procesa resultados de <Gather input="speech"> de Twilio.
-    Devuelve TwiML con <Play> de Azure y un nuevo <Gather> (si continúa),
+    Devuelve TwiML con <Play> de Azure y un nuevo <Gather> (si continÃºa),
     o <Hangup> si el assistant decide terminar.
     """
     form = await request.form()
@@ -355,7 +365,7 @@ async def twilio_speech_result(request: Request):
         logger.warning(f"[{call_sid}] Sin resultado de speech, reintentando...")
         from twilio.twiml.voice_response import VoiceResponse
         resp = VoiceResponse()
-        resp.say("No te escuché. ¿Podrías repetir si quieres agendar una cita?", voice="Polly.Conchita")
+        resp.say("No te escuchÃ©. Â¿PodrÃ­as repetir si quieres agendar una cita?", voice="Polly.Conchita")
         gather = resp.gather(
             input="speech",
             action=f"{BASE_URL}/twilio/speech-result",
@@ -396,64 +406,76 @@ async def twilio_speech_result(request: Request):
         logger.error(f"[{call_sid}] Error en assistant.process: {e}")
         # Fallback response
         reply = {
-            "say_text": "Disculpa, tuve un problema técnico. ¿Podrías repetir si quieres agendar una cita?",
+            "say_text": "Disculpa, tuve un problema tÃ©cnico. Â¿PodrÃ­as repetir si quieres agendar una cita?",
             "actions": [],
             "end_call": False
         }
 
-    # 🔄 Sincroniza slots que haya devuelto el asistente (Contrato A)
+    # ðŸ"„ Sincroniza slots que haya devuelto el asistente (Contrato A)
     new_slots = reply.get("slots")
     if new_slots:
         state["slots"] = new_slots
         state.setdefault("context", {})["slots"] = new_slots
 
-    # Acciones: en Contrato A solo esperamos 'schedule' aquí
+    # Acciones: en Contrato A solo esperamos 'schedule' aquÃ­
     say_parts: List[str] = []
     for act in (reply.get("actions") or []):
         if act.get("type") == "schedule":
             idx = act.get("index")
             slots = state.get("slots", [])
 
-            # Si trae iso_inicio/iso_fin explícitos, agenda con esos
+            # âœ… CORREGIDO: Si trae iso_inicio/iso_fin explÃ­citos, buscar el slot correcto primero
             if act.get("iso_inicio") and act.get("iso_fin"):
-                ok = save_appointment_to_services(call_sid, {
-                    "iso_inicio": act["iso_inicio"],
-                    "iso_fin": act["iso_fin"],
-                    "doctor": slots[0]["doctor"] if slots else "Doctor",
-                    "texto": "cita por fecha/hora solicitada"
-                })
-            # Si trae índice, usa el slot ofrecido
+                # Buscar el slot que coincide con la fecha/hora solicitada
+                matching_slot = find_slot_by_datetime(slots, act["iso_inicio"])
+                
+                if matching_slot:
+                    # Usar el slot correcto (con el doctor correcto)
+                    ok = save_appointment_to_services(call_sid, matching_slot)
+                    logger.info(f"[{call_sid}] âœ… Usando slot coincidente: {matching_slot.get('doctor')} - {matching_slot.get('texto')}")
+                else:
+                    # Fallback: crear slot con datos de la acción (sin doctor específico)
+                    logger.warning(f"[{call_id}] No se encontrÃ³ slot coincidente para {act['iso_inicio']}, usando fallback")
+                    ok = save_appointment_to_services(call_sid, {
+                        "iso_inicio": act["iso_inicio"],
+                        "iso_fin": act["iso_fin"],
+                        "doctor": "Doctor",  # Fallback genérico
+                        "texto": "cita por fecha/hora solicitada"
+                    })
+            # Si trae Ã­ndice, usa el slot ofrecido
             elif isinstance(idx, int) and 0 <= idx < len(slots):
                 ok = save_appointment_to_services(call_sid, slots[idx])
+                logger.info(f"[{call_sid}] âœ… Usando slot por Ã­ndice {idx}: {slots[idx].get('doctor')} - {slots[idx].get('texto')}")
             else:
                 ok = False
+                logger.error(f"[{call_sid}] âŒ AcciÃ³n schedule sin datos vÃ¡lidos: {act}")
 
             if ok:
-                say_parts.append("¡Listo! Tu cita quedó agendada. Te enviaremos la confirmación.")
+                say_parts.append("Â¡Listo! Tu cita quedÃ³ agendada. Te enviaremos la confirmaciÃ³n.")
                 reply["end_call"] = True
             else:
-                say_parts.append("No pude agendar con ese horario. ¿Quieres que te proponga otras opciones?")
+                say_parts.append("No pude agendar con ese horario. Â¿Quieres que te proponga otras opciones?")
 
-        # (Contrato A) No esperamos 'get_slots' aquí; lo hace el LLM por tool.
+        # (Contrato A) No esperamos 'get_slots' aquÃ­; lo hace el LLM por tool.
 
     # Texto principal del assistant
     main_text = (reply.get("say_text") or "").strip()
     if main_text:
         say_parts.insert(0, main_text)
 
-    # ¿Terminar llamada?
+    # Â¿Terminar llamada?
     end_call = bool(reply.get("end_call"))
 
     from twilio.twiml.voice_response import VoiceResponse
     resp = VoiceResponse()
 
     if say_parts:
-        # Guarda en historial lo que dirá el bot (para contexto del LLM)
+        # Guarda en historial lo que dirÃ¡ el bot (para contexto del LLM)
         combined = " ".join(say_parts)
         state["history"].append({"assistant": combined, "timestamp": datetime.now().isoformat()})
         state.setdefault("context", {})["history"] = state["history"]
 
-        # Generar audio Azure y <Play> + (Gather si continúa)
+        # Generar audio Azure y <Play> + (Gather si continÃºa)
         logger.info(f"[{call_sid}] Generando respuesta TTS: {combined[:120]}...")
         twiml = speak_with_azure_and_build_twiml(call_sid, combined, gather_after=(not end_call))
         if twiml:
@@ -462,12 +484,12 @@ async def twilio_speech_result(request: Request):
         else:
             logger.error(f"[{call_sid}] Error generando TwiML con Azure TTS")
 
-    # Fallback si no hubo TTS por cualquier razón
+    # Fallback si no hubo TTS por cualquier razÃ³n
     if end_call:
         logger.info(f"[{call_sid}] Terminando llamada")
         resp.hangup()
     else:
-        logger.info(f"[{call_sid}] Fallback: creando gather básico")
+        logger.info(f"[{call_sid}] Fallback: creando gather bÃ¡sico")
         resp.pause(length=1)
         resp.gather(
             input="speech",
@@ -484,11 +506,11 @@ async def twilio_speech_result(request: Request):
 @app.get("/audio/{call_id}/{seq}")
 async def serve_tts_audio(call_id: str, seq: int, token: str = Query(...)):
     """
-    Sirve WAV μ-law 8kHz generado por Azure para que Twilio lo reproduzca con <Play>.
-    Protegido con token HMAC efímero.
+    Sirve WAV Î¼-law 8kHz generado por Azure para que Twilio lo reproduzca con <Play>.
+    Protegido con token HMAC efÃ­mero.
     """
     if not voice.validate_tts_token(call_id, seq, token):
-        raise HTTPException(status_code=401, detail="token inválido o expirado")
+        raise HTTPException(status_code=401, detail="token invÃ¡lido o expirado")
 
     key = (call_id, seq)
     audio = audio_cache.get(key)
