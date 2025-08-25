@@ -1,0 +1,29 @@
+# Core FastAPI
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+
+# Azure Speech Service
+azure-cognitiveservices-speech==1.41.1
+
+# Google Cloud Services
+google-cloud-texttospeech==2.16.3
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+google-cloud-bigquery==3.11.4
+google-oauth2-tool==0.0.3
+
+# Communication Services
+twilio==8.10.0
+requests==2.31.0
+
+# AI and Utils - Versiones compatibles
+openai
+httpx>=0.25.0,<1.0.0
+pytz==2023.3
+python-dotenv==1.0.0
+
+# Production server
+gunicorn==21.2.0
