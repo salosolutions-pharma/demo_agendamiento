@@ -1,0 +1,18 @@
+# .gcloudignore
+.gcloudignore
+.git/
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.log
+.DS_Store
+desktop.ini
+
+
+
+
+
+

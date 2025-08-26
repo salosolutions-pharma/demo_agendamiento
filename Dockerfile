@@ -16,12 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Crear directorio app
 WORKDIR /app
 
+
 # Copiar requirements e instalar
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el resto del código
 COPY . /app
+# si usas credenciales por archivo:
+ENV GOOGLE_CREDENTIALS_FILE=/app/credentials.json
 
 # Opcional: logging de Azure Speech para debug (puedes quitarlo luego)
 ENV AZURE_SPEECH_LOGGING_ENABLE=1

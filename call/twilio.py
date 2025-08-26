@@ -33,10 +33,9 @@ class TwilioCallProvider(BaseCallProvider):
     def get_provider_name(self) -> str:
         return "twilio"
 
-    def make_call(self, to_number: str, call_id: str) -> str:
-        """Inicia la llamada outbound con Twilio."""
+    def make_call(self, to_number: str, call_id: str, twiml_url: str = None) -> str:
         try:
-            twiml_url = f"{self.base_url}/twilio/twiml"
+            twiml_url = twiml_url or f"{self.base_url}/twilio/twiml"
             webhook_url = f"{self.base_url}/webhook/twilio"
 
             call = self.client.calls.create(
@@ -51,6 +50,7 @@ class TwilioCallProvider(BaseCallProvider):
         except Exception as e:
             logger.error(f"Error iniciando llamada Twilio: {e}")
             raise
+
 
     def hangup_call(self, call_id: str) -> bool:
         """Cuelga la llamada."""

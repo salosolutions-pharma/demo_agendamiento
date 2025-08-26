@@ -15,7 +15,7 @@ def _norm(t: Optional[str]) -> str:
     return (t or "").strip().lower()
 
 
-def _limit_words(text: str, max_words: int = 30) -> str:
+def _limit_words(text: str, max_words: int = 150) -> str:
     words = (text or "").split()
     if len(words) <= max_words:
         return text
@@ -108,10 +108,14 @@ class OpenAIConversationAssistant:
             " - answer_faq: responde dirección/horarios/teléfono/WhatsApp/parqueadero; tras responder, vuelve a ofrecer agendamiento.\n"
             " - schedule: confirma la cita (por índice de las opciones ofrecidas o por ISO si el usuario lo especifica).\n"
             "Reglas:\n"
-            " - Responde en UNA sola oración corta (≤30 palabras), natural y concreta.\n"
+            " - Responde en UNA sola oración corta (≤150 palabras), natural y concreta.\n"
             " - Si el usuario ya eligió horario (por índice, día/hora o frase libre), intenta llamar 'schedule'.\n"
+            " - Tras confirmar con 'schedule', responde con un tono cordial y cercano para asegurar al usuario que la cita quedó agendada.\n"
             " - Si pregunta algo fuera del flujo, usa 'answer_faq' y retoma el agendamiento.\n"
             " - Si no quiere, despídete cordialmente y termina.\n"
+            "Estilo de fecha/hora:\n"
+            " - NUNCA leas fechas en formato numérico; convierte a natural: 'martes 26 de agosto a las 8:00 a. m.'\n"
+            " - Usa meses en palabras (enero… diciembre) y reloj de 12 horas con 'a. m.' / 'p. m.'\n"
         )
 
     # ---------------- Tool handlers (backend) ----------------
@@ -185,7 +189,7 @@ class OpenAIConversationAssistant:
                 temperature=0.4,
                 tools=self.tools,
                 tool_choice="auto",
-                max_tokens=160,
+                max_tokens=200,
             )
             msg = resp.choices[0].message
             tool_calls = getattr(msg, "tool_calls", None)
@@ -254,7 +258,7 @@ class OpenAIConversationAssistant:
             # Sin más tools: ya es el mensaje final
             candidate = (msg.content or "").strip()
             if candidate:
-                say_text = _limit_words(candidate, 30)
+                say_text = _limit_words(candidate, 150)
             break
 
         if say_text and any(x in _norm(say_text) for x in ["hasta luego", "gracias", "feliz día", "buen día"]):
