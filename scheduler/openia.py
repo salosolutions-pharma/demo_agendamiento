@@ -102,17 +102,24 @@ class OpenAIConversationAssistant:
         ]
 
         self.system_prompt = (
-            "Eres Salomé (español colombiano), amable y breve. Objetivo: agendar cita.\n"
+            "Eres Salomé (español colombiano), amable, cordial y breve. Objetivo: agendar cita.\n"
+            "CONTEXTO IMPORTANTE: Si hay un 'nombre_paciente' en el contexto, ESE ES EL PACIENTE que llama, NO un doctor.\n"
+            "Los doctores disponibles son los que aparecen en los slots (Dr. Martínez, etc.).\n"
+            "NUNCA confundas el nombre del paciente con el nombre de un doctor.\n"
+            "\n"
             "Puedes usar funciones cuando lo necesites:\n"
             " - get_slots: consulta horarios reales y ofrece 2-3 opciones claras.\n"
             " - answer_faq: responde dirección/horarios/teléfono/WhatsApp/parqueadero; tras responder, vuelve a ofrecer agendamiento.\n"
             " - schedule: confirma la cita (por índice de las opciones ofrecidas o por ISO si el usuario lo especifica).\n"
+            "\n"
             "Reglas:\n"
-            " - Responde en UNA sola oración corta (≤150 palabras), natural y concreta.\n"
+            " - Responde en UNA sola oración corta (≤150 palabras), natural, cordial y concreta.\n"
             " - Si el usuario ya eligió horario (por índice, día/hora o frase libre), intenta llamar 'schedule'.\n"
-            " - Tras confirmar con 'schedule', responde con un tono cordial y cercano para asegurar al usuario que la cita quedó agendada.\n"
-            " - Si pregunta algo fuera del flujo, usa 'answer_faq' y retoma el agendamiento.\n"
-            " - Si no quiere, despídete cordialmente y termina.\n"
+            " - Tras confirmar con 'schedule', responde con un tono cercano y tranquilizador.\n"
+            " - Si el usuario habla de algo irrelevante, responde amablemente y guíalo hacia el agendamiento.\n"
+            " - Si pregunta algo dentro de FAQs, usa 'answer_faq' y retoma el agendamiento.\n"
+            " - Si no quiere agendar, despídete cordialmente y termina.\n"
+            "\n"
             "Estilo de fecha/hora:\n"
             " - NUNCA leas fechas en formato numérico; convierte a natural: 'martes 26 de agosto a las 8:00 a. m.'\n"
             " - Usa meses en palabras (enero… diciembre) y reloj de 12 horas con 'a. m.' / 'p. m.'\n"
@@ -160,17 +167,28 @@ class OpenAIConversationAssistant:
     # ---------------- Orquestación principal ----------------
 
     def process(self, call_id: str, user_text: str, context: Dict[str, Any], calendar=None) -> Dict[str, Any]:
-        nombre = (context or {}).get("nombre_paciente") or "Cliente"
+        nombre_paciente = (context or {}).get("nombre_paciente") or "Cliente"
         history: List[Dict[str, str]] = (context or {}).get("history", [])
         offered_slots = (context or {}).get("slots", [])
 
         messages = [{"role": "system", "content": self.system_prompt}]
+        
+        # Agregar contexto explícito sobre el paciente ANTES del historial
+        if nombre_paciente and nombre_paciente != "Cliente":
+            messages.append({
+                "role": "system", 
+                "content": f"CONTEXTO: El paciente que llama se llama {nombre_paciente}. Este NO es un doctor, es el PACIENTE que necesita agendar una cita."
+            })
+        
+        # Agregar historial
         for h in history[-2:]:
             if u := h.get("user"):
                 messages.append({"role": "user", "content": u})
             if a := h.get("assistant"):
                 messages.append({"role": "assistant", "content": a})
-        messages.append({"role": "user", "content": f"{nombre}: {user_text}"})
+        
+        # Mensaje actual del usuario
+        messages.append({"role": "user", "content": f"{nombre_paciente}: {user_text}"})
 
         if offered_slots:
             messages.append({

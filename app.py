@@ -496,14 +496,26 @@ async def twilio_speech_result(request: Request):
 
     # Procesar con assistant (Contrato A - tool-calling puro)
     try:
+        # Preparar contexto más explícito para evitar confusión nombre paciente/doctor
+        context = {
+            **state.get("context", {}),
+            "history": state.get("history", []),
+            "slots": state.get("slots", []),
+        }
+        
+        # Asegurar que el nombre del paciente esté claramente identificado
+        nombre_paciente = context.get("nombre_paciente")
+        if nombre_paciente:
+            context["paciente_actual"] = nombre_paciente  # Campo adicional más explícito
+            logger.info(f"[{call_sid}] Contexto paciente: {nombre_paciente}")
+        
+        # DEBUG: Log del contexto para verificar qué se está pasando
+        logger.info(f"[{call_sid}] Context keys: {list(context.keys())}")
+        
         reply = assistant.process(
             call_id=call_sid,
             user_text=speech_result,
-            context={
-                **state.get("context", {}),
-                "history": state.get("history", []),
-                "slots": state.get("slots", []),
-            },
+            context=context,
             calendar=calendar,  # para que el tool get_slots funcione
         )
         logger.info(f"[{call_sid}] Assistant reply: { {k: (v if k!='slots' else f'{len(v)} slots') for k,v in reply.items()} }")
